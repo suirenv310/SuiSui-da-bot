@@ -125,5 +125,38 @@ client.once(Events.ClientReady, () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-client.login(process.env.DISCORD_TOKEN);
+// ====== ENV & TOKEN CHECK ======
+const raw = process.env.DISCORD_TOKEN ?? '';
+const TOKEN = raw.trim();
+
+// log nhẹ cho chắc không lộ secret
+console.log('🔎 ENV sanity:', {
+  hasToken: !!TOKEN,
+  tokenLen: TOKEN.length,
+  hasNewline: /\r|\n/.test(TOKEN),
+});
+
+// format phải có 3 phần, ngăn bởi 2 dấu chấm
+const tokenOk = /^[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+$/.test(TOKEN);
+if (!tokenOk) {
+  console.error('❌ DISCORD_TOKEN rỗng/không đúng format (không đủ 3 phần). Check lại Variables trên Railway.');
+  process.exit(1);
+}
+
+// giải mã phần 1 để so ID
+try {
+  const first = TOKEN.split('.')[0];
+  const decodedId = Buffer.from(first, 'base64').toString('utf8');
+  console.log('🆔 Token says ID =', decodedId, ' | CLIENT_ID =', process.env.CLIENT_ID);
+
+  if (decodedId !== process.env.CLIENT_ID) {
+    console.error('❌ Token KHÔNG thuộc cùng app (CLIENT_ID mismatch). M đang dán token của app/bot khác rồi.');
+    process.exit(1);
+  }
+} catch (e) {
+  console.error('❌ Không decode được phần đầu token:', e.message);
+  process.exit(1);
+}
+
+client.login(TOKEN);
 
